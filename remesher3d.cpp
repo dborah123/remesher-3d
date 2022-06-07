@@ -11,7 +11,7 @@ namespace flux {
 Remesher3d::Remesher3d(
     HalfEdgeMesh<Triangle>& halfmesh
 ) :
-halfmesh_(halfmesh_)
+halfmesh_(halfmesh)
 {
 
 }
@@ -105,7 +105,9 @@ Remesher3d::calculate_q(HalfVertex *p) {
         onering_sum += v->point;
     }
 
-    return onering_sum / onering_size;
+    vec3d result = onering_sum / (double)onering_size;
+
+    return result;
 }
 
 void

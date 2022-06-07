@@ -1,5 +1,5 @@
-#ifndef FLUXREMESHER3D_H
-#define FLUXREMESHER3D_H
+#ifndef FLUX_REMESHER3D_H
+#define FLUX_REMESHER3D_H
 
 #include "halfedges.h"
 #include "element.h"

@@ -4,7 +4,7 @@
 #include "halfedges.h"
 #include "webgl.h"
 #include "sphere.h"
-#include "simplifier.h"
+// #include "../project3/simplifier.h"
 
 using namespace flux;
 
@@ -15,14 +15,18 @@ main (int argc, char *argv[]) {
 
     Sphere<Triangle> sphere(100, 100, 1);
 
-    HalfEdgeMesh<Triangle> halfmesh = simplify_mesh(sphere, 1000);
+    // HalfEdgeMesh<Triangle> halfmesh = simplify_mesh(sphere, 1000);
     Mesh<Triangle> mesh(3);
-    // halfmesh.extract(mesh);
+    
+    HalfEdgeMesh<Triangle> halfmesh(sphere);
     Remesher3d remesh(halfmesh);
+    remesh.tangential_relaxation(10);
 
-    Viewer viewer;
+    // halfmesh.extract(mesh);
+
+    // Viewer viewer;
     // viewer.add(sphere);
-    viewer.add(mesh);
+    // viewer.add(mesh);
     remesh.run_viewer();
 
 

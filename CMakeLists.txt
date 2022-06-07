@@ -1,4 +1,4 @@
-add_executable( remesher3d_exe EXCLUDE_FROM_ALL main.cpp )
+add_executable( remesher3d_exe EXCLUDE_FROM_ALL main.cpp remesher3d.cpp )
 target_link_libraries( remesher3d_exe flux_shared )
 
 target_compile_definitions( remesher3d_exe PUBLIC -DFLUX_FULL_UNIT_TEST=false )
