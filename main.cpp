@@ -1,34 +1,30 @@
 #include "remesher3d.h"
 #include "mesh.h"
-#include "readwrite.h"
-#include "halfedges.h"
-#include "webgl.h"
-#include "sphere.h"
-// #include "../project3/simplifier.h"
+#include "grid.h"
+#include "element.h"
+
+#include "../marching-tets/marchingtet.h"
+#include "../marching-tets/tet-functions.h"
 
 using namespace flux;
 
 int
 main (int argc, char *argv[]) {
-    // std::unique_ptr<MeshBase> mesh_ptr = read_obj("../../../../data/fandisk.off" , false );
-    // Mesh<Triangle>& mesh1 = *static_cast< Mesh<Triangle>* >(mesh_ptr.get());
+    /* Creating un-uniform sphere from marching-tet project */
+    // Creating analytical sphere function
+    Grid<Tet> tet_grid({3,3,3});
+    double center[3] = {0.5, 0.5, 0.5};
+    double radius = 0.5;
+    SphereTetFunction function(radius, center);
 
-    Sphere<Triangle> sphere(100, 100, 1);
+    // Peforming marching tet alg and getting sphere
+    MarchingTet m_tet(tet_grid, function);
+    m_tet.marching_tets();
+    Mesh<Triangle>& sphere = m_tet.get_mesh();
 
-    // HalfEdgeMesh<Triangle> halfmesh = simplify_mesh(sphere, 1000);
-    Mesh<Triangle> mesh(3);
-    
+    /* Remeshing Operations */
     HalfEdgeMesh<Triangle> halfmesh(sphere);
     Remesher3d remesh(halfmesh);
     remesh.tangential_relaxation(10);
-
-    // halfmesh.extract(mesh);
-
-    // Viewer viewer;
-    // viewer.add(sphere);
-    // viewer.add(mesh);
     remesh.run_viewer();
-
-
-    // HalfEdgeMesh<Triangle> halfmesh(mesh1);
 }

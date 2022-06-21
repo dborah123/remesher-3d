@@ -81,8 +81,16 @@ Remesher3d::relax_vertex(HalfVertex *vertex) {
     vec3d p = vertex->point;
     double n = norm(p);
     vec3d q = calculate_q(vertex);
+    
+    vec3d pmq = n * (p-q);
+    if (std::isinf(p-q)) {
+        std::cout << pmq << std::endl;
+    }
 
-    vec3d p_prime = q + (n * (p - q)) * n;
+    
+
+    vec3d p_prime = q + ((n * (p - q)) * n);
+
     return p_prime;
 }
 
@@ -106,7 +114,9 @@ Remesher3d::calculate_q(HalfVertex *p) {
     }
 
     vec3d result = onering_sum / (double)onering_size;
-
+    if (std::isinf(result[0])) {
+        std::cout << "result is infinite" << std::endl;
+    }
     return result;
 }
 
