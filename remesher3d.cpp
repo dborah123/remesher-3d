@@ -79,19 +79,66 @@ Remesher3d::relax_vertex(HalfVertex *vertex) {
      * \return: new coordinates of point
      */
     vec3d p = vertex->point;
-    double n = norm(p);
+    vec3d n = calculate_n(vertex);
     vec3d q = calculate_q(vertex);
-    
-    vec3d pmq = n * (p-q);
-    if (std::isinf(p-q)) {
-        std::cout << pmq << std::endl;
+
+    // vec3d pmq = p - q;
+    // vec3d nxpmq = dot(n, pmq);
+    // vec3d p_prime = q + (nxpmq * n);
+    vec3d p_prime = q + (dot(n, (p - q)) * n);
+    return p_prime;
+}
+
+vec3d
+Remesher3d::calculate_n(HalfVertex *p) {
+    /**
+     * Calculates n by getting onering of p and getting average of face normals
+     */
+    // Getting onering
+    std::vector<HalfFace*> p_onering;
+    halfmesh_.get_onering(p, p_onering);
+    int num_faces = p_onering.size();
+
+    vec3d avg_face_normals;
+    avg_face_normals.zero();
+    for (auto& face : p_onering) {
+        avg_face_normals += calculate_face_normal(face);
     }
 
-    
+    for (int i = 0; i < 3; ++i) {
+        avg_face_normals[i] = avg_face_normals[i] / num_faces;
+    }
+    return avg_face_normals;
+}
 
-    vec3d p_prime = q + ((n * (p - q)) * n);
+vec3d
+Remesher3d::calculate_face_normal(HalfFace *face) {
+    /**
+     * 
+     */
+    // Getting necessary connectivity elements
+    HalfEdge *halfedge0 = face->edge;
+    HalfEdge *halfedge1 = halfedge0->next;
+    HalfEdge *halfedge2 = halfedge1->next;
 
-    return p_prime;
+    // Getting coords of vertices of triangle
+    vec3d point0 = halfedge0->vertex->point;
+    vec3d point1 = halfedge1->vertex->point;
+    vec3d point2 = halfedge2->vertex->point;
+
+    // Getting two edges to perform calculation on
+    vec3d edge_a = point1 - point0;
+    vec3d edge_b = point2 - point0;
+
+    // Calculating face normal
+    vec3d face_normal;
+    int j, k;
+    for (int i = 0; i < 3; ++i) {
+        j = (i+1) % 3;
+        k = (i+2) % 3;
+        face_normal[i] = (edge_a[j] * edge_b[k]) - (edge_a[k] * edge_b[j]);
+    }
+    return face_normal;
 }
 
 vec3d

@@ -12,7 +12,7 @@ int
 main (int argc, char *argv[]) {
     /* Creating un-uniform sphere from marching-tet project */
     // Creating analytical sphere function
-    Grid<Tet> tet_grid({3,3,3});
+    Grid<Tet> tet_grid({10,10,10});
     double center[3] = {0.5, 0.5, 0.5};
     double radius = 0.5;
     SphereTetFunction function(radius, center);
