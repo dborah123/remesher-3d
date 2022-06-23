@@ -3,6 +3,7 @@
 
 #include "halfedges.h"
 #include "element.h"
+#include <map>
 
 namespace flux {
 
@@ -17,6 +18,7 @@ void tangential_relaxation(int num_iterations);
 /* Statistics and Visual Functions */
 void print_stats();
 void run_viewer();
+HalfEdgeMesh<Triangle>& get_mesh();
 
 private:
 HalfEdgeMesh<Triangle>& halfmesh_;
@@ -31,7 +33,8 @@ vec3d calculate_q(HalfVertex *p);
 vec3d calculate_n(HalfVertex *p);
 vec3d calculate_face_normal(HalfFace *face);
 
-void change_coordinates(std::vector<vec3d>& new_points);
+int check_negative_area(HalfVertex *vertex, vec3d new_coords);
+void change_coordinates(std::map<HalfVertex*, vec3d>& new_points);
 
 };
 

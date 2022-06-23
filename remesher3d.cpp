@@ -2,6 +2,8 @@
 #include "vec.hpp"
 #include "webgl.h"
 #include "mesh.h"
+#include "predicates.h"
+#include <map>
 
 namespace flux {
 /**
@@ -39,6 +41,11 @@ Remesher3d::run_viewer() {
     viewer.run();
 }
 
+HalfEdgeMesh<Triangle>&
+Remesher3d::get_mesh() {
+    return halfmesh_;
+}
+
 /**
  * TANGENTIAL RELAXATION
  */
@@ -57,17 +64,23 @@ Remesher3d::relax_vertices() {
     /**
      * Iterates through vertices in halfmesh_, relaxing them
      */
-    std::vector<vec3d> new_points;
+    // std::vector<vec3d> new_points;
+    std::map<HalfVertex*, vec3d> new_points;
     vec3d new_coords;
     HalfVertex *halfvertex;
 
     for (auto& v : halfmesh_.vertices()) {
         halfvertex = v.get();
         new_coords = relax_vertex(halfvertex);
-        new_points.push_back(new_coords);
+        if (check_negative_area(halfvertex, new_coords)) {
+            std::cout << "caught" << std::endl;
+            continue;
+        }
+        halfvertex->point = new_coords;
+        // new_points[halfvertex] = new_coords;
     }
 
-    change_coordinates(new_points);
+    // change_coordinates(new_points);
 }
 
 vec3d
@@ -159,26 +172,51 @@ Remesher3d::calculate_q(HalfVertex *p) {
     for (HalfVertex *v : p_onering) {
         onering_sum += v->point;
     }
-
     vec3d result = onering_sum / (double)onering_size;
-    if (std::isinf(result[0])) {
-        std::cout << "result is infinite" << std::endl;
-    }
+
     return result;
 }
 
 void
-Remesher3d::change_coordinates(std::vector<vec3d>& new_points) {
+Remesher3d::change_coordinates(std::map<HalfVertex*, vec3d>& new_points) {
     /**
      * Changes vertices in halfmesh to the new ones in new_points
      */
     HalfVertex *vertex;
-    int i = 0;
-    for (auto& v : halfmesh_.vertices()) {
-        vertex = v.get();
-        vertex->point = new_points[i];
-        i++;
+    vec3d new_point;
+    for (auto iter = new_points.begin(); iter != new_points.end(); iter++) {
+        vertex = iter->first;
+        new_point = iter->second;
+        vertex->point = new_point;
     }
 }
+
+int
+Remesher3d::check_negative_area(HalfVertex *vertex, vec3d new_coords) {
+    /**
+     * Checks to see if new coordinate point would create negative area
+     *
+     * RETURNS: 0 if point doesn't create negative area and 1 if it does
+     */
+    std::vector<HalfEdge*> v_onering;
+    halfmesh_.get_onering(vertex, v_onering);
+    const double *v0_coord = vertex->point.data();
+
+    const double center[3] = {0.5, 0.5, 0.5};
+
+    HalfVertex *v1, *v2;
+    const double *v1_coord, *v2_coord;
+    for (HalfEdge *halfedge : v_onering) {
+        v1 = halfedge->next->vertex;
+        v2 = halfedge->next->next->vertex;
+
+        v1_coord = v1->point.data();
+        v2_coord = v2->point.data();
+
+        if (orient3d(v0_coord, v1_coord, v2_coord, center) < 0) return 1;
+    }
+    return 0;
+}
+
 
 } // flux
