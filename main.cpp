@@ -11,10 +11,9 @@ using namespace flux;
 
 int
 main (int argc, char *argv[]) {
-    Viewer viewer;
     /* Creating un-uniform sphere from marching-tet project */
     // Creating analytical sphere function
-    Grid<Tet> tet_grid({10,10,10});
+    Grid<Tet> tet_grid({4,4,4});
     double center[3] = {0.5, 0.5, 0.5};
     double radius = 0.5;
     SphereTetFunction function(radius, center);
@@ -23,18 +22,10 @@ main (int argc, char *argv[]) {
     MarchingTet m_tet(tet_grid, function);
     m_tet.marching_tets();
     Mesh<Triangle>& sphere = m_tet.get_mesh();
-    viewer.add(sphere);
 
     /* Remeshing Operations */
     HalfEdgeMesh<Triangle> halfmesh(sphere);
     Remesher3d remesh(halfmesh);
     remesh.tangential_relaxation(1);
-
-    HalfEdgeMesh<Triangle>& halfmesh_res = remesh.get_mesh();
-    Mesh<Triangle> mesh_res(3);
-    halfmesh_res.extract(mesh_res);
-    viewer.add(mesh_res);
-    viewer.run();
-
-    // remesh.run_viewer();
+    remesh.run_viewer();
 }

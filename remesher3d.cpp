@@ -71,11 +71,22 @@ Remesher3d::relax_vertices() {
 
     for (auto& v : halfmesh_.vertices()) {
         halfvertex = v.get();
-        new_coords = relax_vertex(halfvertex);
-        if (check_negative_area(halfvertex, new_coords)) {
-            std::cout << "caught" << std::endl;
+
+        if (halfvertex->index == 96) {
+            std::cout << "96: " << halfvertex->point << std::endl;
+            new_coords = relax_vertex(halfvertex);
+            halfvertex->point = new_coords;
             continue;
         }
+
+        // if (halfvertex->index == 95) {
+        //     std::cout << "95: " << halfvertex->point << std::endl;
+        //     new_coords = relax_vertex(halfvertex);
+        //     halfvertex->point = new_coords;
+        //     std::cout << halfvertex->point << std::endl;
+        // }
+
+        new_coords = relax_vertex(halfvertex);
         halfvertex->point = new_coords;
         // new_points[halfvertex] = new_coords;
     }
@@ -95,6 +106,11 @@ Remesher3d::relax_vertex(HalfVertex *vertex) {
     vec3d n = calculate_n(vertex);
     vec3d q = calculate_q(vertex);
 
+    if (vertex->index == 96) {
+        std::cout << "N:::::: " << n << std::endl;
+        std::cout << '\n' << "Q:::::" << q << std::endl;
+    }
+
     // vec3d pmq = p - q;
     // vec3d nxpmq = dot(n, pmq);
     // vec3d p_prime = q + (nxpmq * n);
@@ -111,6 +127,9 @@ Remesher3d::calculate_n(HalfVertex *p) {
     std::vector<HalfFace*> p_onering;
     halfmesh_.get_onering(p, p_onering);
     int num_faces = p_onering.size();
+    if (p->index == 165) {
+        std::cout << "Number of Faces:: " << num_faces << '\n';
+    }
 
     vec3d avg_face_normals;
     avg_face_normals.zero();
@@ -172,7 +191,9 @@ Remesher3d::calculate_q(HalfVertex *p) {
     for (HalfVertex *v : p_onering) {
         onering_sum += v->point;
     }
-    vec3d result = onering_sum / (double)onering_size;
+
+    vec3d result;
+    result = onering_sum / (double) onering_size;
 
     return result;
 }
