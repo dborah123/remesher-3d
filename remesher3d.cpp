@@ -14,12 +14,10 @@ Remesher3d::Remesher3d(
     HalfEdgeMesh<Triangle>& halfmesh
 ) :
 halfmesh_(halfmesh)
-{
-
-}
+{  }
 
 /**
- * STATISTICAL AND VISUAL FUNCTIONS
+ * UTILITY FUNCTIONS
  */
 void
 Remesher3d::print_stats() {
@@ -71,27 +69,11 @@ Remesher3d::relax_vertices() {
 
     for (auto& v : halfmesh_.vertices()) {
         halfvertex = v.get();
-
-        if (halfvertex->index == 96) {
-            std::cout << "96: " << halfvertex->point << std::endl;
-            new_coords = relax_vertex(halfvertex);
-            halfvertex->point = new_coords;
-            continue;
-        }
-
-        // if (halfvertex->index == 95) {
-        //     std::cout << "95: " << halfvertex->point << std::endl;
-        //     new_coords = relax_vertex(halfvertex);
-        //     halfvertex->point = new_coords;
-        //     std::cout << halfvertex->point << std::endl;
-        // }
-
         new_coords = relax_vertex(halfvertex);
-        halfvertex->point = new_coords;
-        // new_points[halfvertex] = new_coords;
+        new_points[halfvertex] = new_coords;
     }
 
-    // change_coordinates(new_points);
+    change_coordinates(new_points);
 }
 
 vec3d
@@ -106,14 +88,6 @@ Remesher3d::relax_vertex(HalfVertex *vertex) {
     vec3d n = calculate_n(vertex);
     vec3d q = calculate_q(vertex);
 
-    if (vertex->index == 96) {
-        std::cout << "N:::::: " << n << std::endl;
-        std::cout << '\n' << "Q:::::" << q << std::endl;
-    }
-
-    // vec3d pmq = p - q;
-    // vec3d nxpmq = dot(n, pmq);
-    // vec3d p_prime = q + (nxpmq * n);
     vec3d p_prime = q + (dot(n, (p - q)) * n);
     return p_prime;
 }
@@ -127,10 +101,8 @@ Remesher3d::calculate_n(HalfVertex *p) {
     std::vector<HalfFace*> p_onering;
     halfmesh_.get_onering(p, p_onering);
     int num_faces = p_onering.size();
-    if (p->index == 165) {
-        std::cout << "Number of Faces:: " << num_faces << '\n';
-    }
 
+    // Getting face normals of the surrounding faces and averaging them
     vec3d avg_face_normals;
     avg_face_normals.zero();
     for (auto& face : p_onering) {
@@ -211,33 +183,5 @@ Remesher3d::change_coordinates(std::map<HalfVertex*, vec3d>& new_points) {
         vertex->point = new_point;
     }
 }
-
-int
-Remesher3d::check_negative_area(HalfVertex *vertex, vec3d new_coords) {
-    /**
-     * Checks to see if new coordinate point would create negative area
-     *
-     * RETURNS: 0 if point doesn't create negative area and 1 if it does
-     */
-    std::vector<HalfEdge*> v_onering;
-    halfmesh_.get_onering(vertex, v_onering);
-    const double *v0_coord = vertex->point.data();
-
-    const double center[3] = {0.5, 0.5, 0.5};
-
-    HalfVertex *v1, *v2;
-    const double *v1_coord, *v2_coord;
-    for (HalfEdge *halfedge : v_onering) {
-        v1 = halfedge->next->vertex;
-        v2 = halfedge->next->next->vertex;
-
-        v1_coord = v1->point.data();
-        v2_coord = v2->point.data();
-
-        if (orient3d(v0_coord, v1_coord, v2_coord, center) < 0) return 1;
-    }
-    return 0;
-}
-
 
 } // flux

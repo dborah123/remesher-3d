@@ -28,12 +28,9 @@ HalfEdgeMesh<Triangle>& halfmesh_;
  */
 void relax_vertices();
 vec3d relax_vertex(HalfVertex *vertex);
-
 vec3d calculate_q(HalfVertex *p);
 vec3d calculate_n(HalfVertex *p);
 vec3d calculate_face_normal(HalfFace *face);
-
-int check_negative_area(HalfVertex *vertex, vec3d new_coords);
 void change_coordinates(std::map<HalfVertex*, vec3d>& new_points);
 
 };
