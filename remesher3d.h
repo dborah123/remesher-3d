@@ -3,6 +3,7 @@
 
 #include "halfedges.h"
 #include "element.h"
+#include "../marching-tets/tet-functions.h"
 #include <map>
 
 namespace flux {
@@ -15,8 +16,12 @@ Remesher3d(HalfEdgeMesh<Triangle>& halfmesh);
 /* Remeshing Algorithms: */
 void tangential_relaxation(int num_iterations);
 
+/* Expeirmental Functions */
+void correct_tangential_relaxation(SphereTetFunction& function);
+
 /* Statistics and Visual Functions */
 void print_stats();
+int choose_algorithm();
 void run_viewer();
 HalfEdgeMesh<Triangle>& get_mesh();
 

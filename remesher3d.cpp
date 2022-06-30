@@ -26,6 +26,24 @@ Remesher3d::print_stats() {
      */
 }
 
+int
+Remesher3d::choose_algorithm() {
+    /**
+     * Prompts user to choose which remeshing algorithm to perform
+     * 
+     * RETURNS: -1 if invalid answer
+     */
+    std::cout << "Choose a remeshing algorithm to perform on sphere:" << '\n';
+    std::cout << "0. Tangential Relaxation" << '\n';
+
+    int user_response;
+
+    std::cin >> user_response;
+
+    if (user_response > 0 || user_response < 0) return -1;
+    return user_response;
+}
+
 void
 Remesher3d::run_viewer() {
     /**
@@ -184,4 +202,27 @@ Remesher3d::change_coordinates(std::map<HalfVertex*, vec3d>& new_points) {
     }
 }
 
+void
+Remesher3d::correct_tangential_relaxation(SphereTetFunction& function) {
+    /**
+     * Realigns vertices to place on the sphere itself
+     */
+    HalfVertex *vertex;
+    vec3d original_point;
+    vec3d new_point;
+    vec3d distance_to_new_point;
+    for (auto& v : halfmesh_.vertices()) {
+        vertex = v.get();
+        original_point = vertex->point;
+        distance_to_new_point = function(original_point);
+        
+        for (int i = 0; i < 3; ++i) {
+            distance_to_new_point[i] = -1 * distance_to_new_point[i];
+        }
+
+        new_point = distance_to_new_point + original_point;
+
+        vertex->point = new_point;
+    }
+}
 } // flux

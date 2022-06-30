@@ -27,5 +27,6 @@ main (int argc, char *argv[]) {
     HalfEdgeMesh<Triangle> halfmesh(sphere);
     Remesher3d remesh(halfmesh);
     remesh.tangential_relaxation(10);
+    remesh.correct_tangential_relaxation(function);
     remesh.run_viewer();
 }
