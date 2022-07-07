@@ -13,8 +13,17 @@ namespace flux {
 Remesher3d::Remesher3d(
     HalfEdgeMesh<Triangle>& halfmesh
 ) :
-halfmesh_(halfmesh)
-{  }
+_halfmesh(halfmesh)
+{
+    build();
+}
+
+void
+Remesher3d::build() {
+    Mesh<Triangle> mesh(3);
+    _halfmesh.extract(mesh);
+    _kd_tree = kdtree()
+}
 
 /**
  * UTILITY FUNCTIONS
@@ -50,7 +59,7 @@ Remesher3d::run_viewer() {
      * Runs viewer in flux360
      */
     Mesh<Triangle> mesh(3);
-    halfmesh_.extract(mesh);
+    _halfmesh.extract(mesh);
 
     Viewer viewer;
     viewer.add(mesh);
@@ -59,7 +68,7 @@ Remesher3d::run_viewer() {
 
 HalfEdgeMesh<Triangle>&
 Remesher3d::get_mesh() {
-    return halfmesh_;
+    return _halfmesh;
 }
 
 /**
@@ -78,14 +87,14 @@ Remesher3d::tangential_relaxation(int num_iterations) {
 void
 Remesher3d::relax_vertices() {
     /**
-     * Iterates through vertices in halfmesh_, relaxing them
+     * Iterates through vertices in _halfmesh, relaxing them
      */
     // std::vector<vec3d> new_points;
     std::map<HalfVertex*, vec3d> new_points;
     vec3d new_coords;
     HalfVertex *halfvertex;
 
-    for (auto& v : halfmesh_.vertices()) {
+    for (auto& v : _halfmesh.vertices()) {
         halfvertex = v.get();
         new_coords = relax_vertex(halfvertex);
         new_points[halfvertex] = new_coords;
@@ -117,7 +126,7 @@ Remesher3d::calculate_n(HalfVertex *p) {
      */
     // Getting onering
     std::vector<HalfFace*> p_onering;
-    halfmesh_.get_onering(p, p_onering);
+    _halfmesh.get_onering(p, p_onering);
     int num_faces = p_onering.size();
 
     // Getting face normals of the surrounding faces and averaging them
@@ -171,7 +180,7 @@ Remesher3d::calculate_q(HalfVertex *p) {
      * \return: vec3d of coordinates of q
      */
     std::vector<HalfVertex*> p_onering;
-    halfmesh_.get_onering(p, p_onering);
+    _halfmesh.get_onering(p, p_onering);
     int onering_size = p_onering.size();
 
     // initializing vec3 to hold sum of vertex coordinates
@@ -211,7 +220,7 @@ Remesher3d::correct_tangential_relaxation(SphereTetFunction& function) {
     vec3d original_point;
     vec3d new_point;
     vec3d distance_to_new_point;
-    for (auto& v : halfmesh_.vertices()) {
+    for (auto& v : _halfmesh.vertices()) {
         vertex = v.get();
         original_point = vertex->point;
         distance_to_new_point = function(original_point);
@@ -223,6 +232,25 @@ Remesher3d::correct_tangential_relaxation(SphereTetFunction& function) {
         new_point = distance_to_new_point + original_point;
 
         vertex->point = new_point;
+    }
+}
+
+
+void
+Remesher3d::incremental_relaxation(int num_iterations) {
+    /**
+     * Implementation of the incremental relaxation remeshing algorithm
+     */
+    for (int i = 0; i < num_iterations; ++i) {
+        // Split long edges
+
+        // Collapse short edges
+
+        // Equalize valences
+
+        // Tangential relaxation
+
+        // Project to surface
     }
 }
 } // flux

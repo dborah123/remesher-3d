@@ -4,6 +4,7 @@
 #include "halfedges.h"
 #include "element.h"
 #include "../marching-tets/tet-functions.h"
+#include "kdtree.h"
 #include <map>
 
 namespace flux {
@@ -26,7 +27,27 @@ void run_viewer();
 HalfEdgeMesh<Triangle>& get_mesh();
 
 private:
-HalfEdgeMesh<Triangle>& halfmesh_;
+HalfEdgeMesh<Triangle>& _halfmesh;
+kdtree<3> _kd_tree;
+
+
+/**
+ * INCREMENTAL RELAXATION
+ */
+void incremental_relaxation(int num_iterations);
+void build();
+
+/**
+ * SPLIT
+ */
+
+/**
+ * COllAPSE
+ */
+
+/**
+ * EQUALIZE VALENCES
+ */
 
 /**
  * TANGENTIAL RELAXATION
@@ -38,6 +59,9 @@ vec3d calculate_n(HalfVertex *p);
 vec3d calculate_face_normal(HalfFace *face);
 void change_coordinates(std::map<HalfVertex*, vec3d>& new_points);
 
+/**
+ * PROJECT TO SURFACE
+ */
 };
 
 } // flux
