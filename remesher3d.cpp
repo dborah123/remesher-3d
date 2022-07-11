@@ -15,7 +15,7 @@ Remesher3d::Remesher3d(
     SizingField<3>& sizing_field
 ) :
 _halfmesh(halfmesh),
-_sizing_field(_sizing_field)
+_sizing_field(sizing_field)
 {  }
 
 /**
@@ -235,8 +235,9 @@ Remesher3d::incremental_relaxation(int num_iterations) {
      * Implementation of the incremental relaxation remeshing algorithm
      */
     for (int i = 0; i < num_iterations; ++i) {
+        std::cout << "split" << std::endl;
         // Split long edges
-
+        split_edges();
         // Collapse short edges
 
         // Equalize valences
@@ -282,10 +283,11 @@ Remesher3d::check_split(HalfEdge* halfedge) {
     double length = get_length(halfedge);
 
     // Get midpoint of halfedge
-    double midpoint[2];
+    double midpoint[3];
     vec3d midpoint_vec = calculate_middle(halfedge);
     midpoint[0] = midpoint_vec[0];
     midpoint[1] = midpoint_vec[1];
+    midpoint[2] = midpoint_vec[2];
 
     // Check if creates short edges
     vec3d r_point = halfedge->next->next->vertex->point;
@@ -380,7 +382,6 @@ Remesher3d::split(HalfEdge* halfedge) {
 
 }
 
-
 void
 Remesher3d::split_boundary(HalfEdge *halfedge) {
     /**
@@ -445,6 +446,41 @@ Remesher3d::split_boundary(HalfEdge *halfedge) {
     twin->prev = d;
 }
 
+void
+Remesher3d::change_edge(
+    HalfEdge* halfedge,
+    HalfEdge *next,
+    HalfEdge *twin,
+    HalfVertex *vertex, 
+    HalfFace *face
+) {
+    /**
+     * Changes halfedge's fields according to inputs
+     * If a param is nullptr, it will be ignored
+     */
+    if (next) halfedge->next = next;
+    if (twin) halfedge->twin = twin;
+    if (vertex) halfedge->vertex = vertex;
+    if (face) halfedge->face = face;
+}
+
+void
+Remesher3d::change_face(HalfFace *face, HalfEdge *halfedge) {
+    /**
+     * Changes halfedge's field according to input
+     */
+    if (halfedge) face->edge = halfedge;
+}
+
+void
+Remesher3d::change_vertex(HalfVertex *vertex, HalfEdge *halfedge) {
+    /**
+     * Changes vertex's fields according to inputs
+     */
+    if (halfedge) vertex->edge = halfedge;
+}
+
+
 /**
  * HELPER METHODS
  */
@@ -505,7 +541,7 @@ Remesher3d::calculate_middle(HalfEdge *halfedge) {
 
     result_coords[0] = (v1_point[0] + v2_point[0]) / 2.0;
     result_coords[1] = (v1_point[1] + v2_point[1]) / 2.0;
-    result_coords[2] = 0;
+    result_coords[2] = (v1_point[2] + v2_point[2]) / 2.0;;
 
     return result_coords;
 }

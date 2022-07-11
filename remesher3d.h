@@ -17,6 +17,8 @@ Remesher3d(HalfEdgeMesh<Triangle>& halfmesh, SizingField<3>& sizing_field);
 
 /* Remeshing Algorithms: */
 void tangential_relaxation(int num_iterations);
+void incremental_relaxation(int num_iterations);
+
 
 /* Expeirmental Functions */
 void correct_tangential_relaxation(SphereTetFunction& function);
@@ -35,7 +37,6 @@ std::vector<HalfEdge*> _halfedge_vector;
 /**
  * INCREMENTAL RELAXATION
  */
-void incremental_relaxation(int num_iterations);
 void build();
 
 /**
