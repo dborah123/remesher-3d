@@ -5,6 +5,7 @@
 #include "element.h"
 #include "../marching-tets/tet-functions.h"
 #include "kdtree.h"
+#include "size.h"
 #include <map>
 
 namespace flux {
@@ -12,7 +13,7 @@ namespace flux {
 class Remesher3d {
 public:
 
-Remesher3d(HalfEdgeMesh<Triangle>& halfmesh);
+Remesher3d(HalfEdgeMesh<Triangle>& halfmesh, SizingField<3>& sizing_field);
 
 /* Remeshing Algorithms: */
 void tangential_relaxation(int num_iterations);
@@ -28,8 +29,8 @@ HalfEdgeMesh<Triangle>& get_mesh();
 
 private:
 HalfEdgeMesh<Triangle>& _halfmesh;
-kdtree<3> _kd_tree;
-
+const SizingField<3>& _sizing_field;
+std::vector<HalfEdge*> _halfedge_vector;
 
 /**
  * INCREMENTAL RELAXATION
@@ -40,6 +41,19 @@ void build();
 /**
  * SPLIT
  */
+std::pair<int,int> split_edges();
+void split(HalfEdge *halfedge);
+void split_boundary(HalfEdge *halfedge);
+void change_edge(
+    HalfEdge *halfedge,
+    HalfEdge *next,
+    HalfEdge *twin,
+    HalfVertex *vertex,
+    HalfFace *face
+);
+void change_face(HalfFace *face, HalfEdge *halfedge);
+void change_vertex(HalfVertex *vertex, HalfEdge *halfedge);
+int check_split(HalfEdge *halfedge);
 
 /**
  * COllAPSE
@@ -62,6 +76,19 @@ void change_coordinates(std::map<HalfVertex*, vec3d>& new_points);
 /**
  * PROJECT TO SURFACE
  */
+
+
+/**
+ * HELPER FUNCTIONS
+ */
+void update_halfedge_vector();
+int is_boundary_edge(HalfEdge* halfedge);
+
+/**
+ * COMPUTATION
+ */
+double get_length(HalfEdge *halfedge);
+vec3d calculate_middle(HalfEdge *halfedge);
 };
 
 } // flux

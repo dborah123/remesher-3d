@@ -11,19 +11,12 @@ namespace flux {
  */
 
 Remesher3d::Remesher3d(
-    HalfEdgeMesh<Triangle>& halfmesh
+    HalfEdgeMesh<Triangle>& halfmesh,
+    SizingField<3>& sizing_field
 ) :
-_halfmesh(halfmesh)
-{
-    build();
-}
-
-void
-Remesher3d::build() {
-    Mesh<Triangle> mesh(3);
-    _halfmesh.extract(mesh);
-    _kd_tree = kdtree()
-}
+_halfmesh(halfmesh),
+_sizing_field(_sizing_field)
+{  }
 
 /**
  * UTILITY FUNCTIONS
@@ -252,5 +245,268 @@ Remesher3d::incremental_relaxation(int num_iterations) {
 
         // Project to surface
     }
+}
+
+/**
+ * SPLIT
+ */
+std::pair<int,int>
+Remesher3d::split_edges() {
+    /**
+     * Performs splits on appropriate edges
+     */
+    int num_splits = 0, num_boundary_splits = 0;
+    update_halfedge_vector();
+
+    for (auto& halfedge : _halfedge_vector) {
+        switch (check_split(halfedge))
+        {
+        case 1:
+            split(halfedge);
+            num_splits++;
+            break;
+        case 2:
+            split_boundary(halfedge);
+            num_boundary_splits++;
+            break;
+        default:
+            break;
+        }
+    }
+
+    return std::make_pair(num_splits, num_boundary_splits);
+}
+
+int
+Remesher3d::check_split(HalfEdge* halfedge) {
+    double length = get_length(halfedge);
+
+    // Get midpoint of halfedge
+    double midpoint[2];
+    vec3d midpoint_vec = calculate_middle(halfedge);
+    midpoint[0] = midpoint_vec[0];
+    midpoint[1] = midpoint_vec[1];
+
+    // Check if creates short edges
+    vec3d r_point = halfedge->next->next->vertex->point;
+    vec3d s_point = halfedge->twin->next->next->vertex->point;
+
+    double new_edge1 = norm(r_point - midpoint_vec);
+    double new_edge2 = norm(midpoint_vec - s_point); 
+
+    double analytical_length = _sizing_field(midpoint);
+
+    // Edge check
+    double ratio = length / analytical_length;
+
+    if (ratio < sqrt(2)) return 0;     // no split
+
+    // Short edge creation check
+    double p_ratio = new_edge1 / analytical_length;
+    double s_ratio = new_edge2 / analytical_length;
+
+    if (p_ratio < 0.6 || s_ratio < 0.6) return 0; // no split >>> creates short edges
+    if (is_boundary_edge(halfedge)) return 2;     // boundary split
+    return 1;    
+}
+
+void
+Remesher3d::split(HalfEdge* halfedge) {
+    /**
+     * 
+     */
+        /**
+     * Splits (long) halfedge into 4 edges
+     */
+    // Calculating coordinates for new point
+    vec3d new_point_coords = calculate_middle(halfedge);
+    double new_points_arr[3] = {
+        new_point_coords[0],
+        new_point_coords[1],
+        new_point_coords[2]
+    };
+
+    // Defining current setup
+    HalfEdge *twin = halfedge->twin;
+    HalfEdge *tr = halfedge->next;
+    HalfEdge *tl = tr->next;
+    HalfEdge *bl = twin->next;
+    HalfEdge *br = bl->next;
+
+    HalfVertex *p = halfedge->twin->vertex;
+    HalfVertex *r = halfedge->next->next->vertex;
+    HalfVertex *s = twin->next->next->vertex;
+
+    HalfFace *f1 = halfedge->face;
+    HalfFace *f4 = twin->face;
+
+    // Initialize new vertex
+    HalfVertex *new_vertex = _halfmesh.create_vertex(3, new_points_arr);
+
+    // Setting up triangles
+    HalfEdge *a = _halfmesh.create_edge();
+    HalfEdge *b = _halfmesh.create_edge();
+    HalfEdge *c = _halfmesh.create_edge();
+    HalfEdge *d = _halfmesh.create_edge();
+    HalfEdge *e = _halfmesh.create_edge();
+    HalfEdge *f = _halfmesh.create_edge();
+
+    HalfFace *f2 = _halfmesh.create_face();
+    HalfFace *f3 = _halfmesh.create_face();
+
+    // Setting edges a,b,c,d,e,f
+    change_edge(a, tl, b, new_vertex, f1);
+    change_edge(b, c, a, r, f2);
+    change_edge(c, tr, d, new_vertex, f2);
+    change_edge(d, e, c, p, f3);
+    change_edge(e, br, f, new_vertex, f3);
+    change_edge(f, twin, e, s, f4);
+    
+    // Connecting previous mesh componenets to new ones (and the new vertex)
+    change_edge(halfedge, a, nullptr, nullptr, nullptr);
+    change_edge(twin, nullptr, nullptr, new_vertex, nullptr);
+
+    change_edge(tr, b, nullptr, nullptr, f2);
+    change_edge(br, d, nullptr, nullptr, f3);
+    change_edge(bl, f, nullptr, nullptr, f4);
+
+    change_vertex(new_vertex, a);
+    change_vertex(p, d);
+    
+    change_face(f1, halfedge);
+    change_face(f2, b);
+    change_face(f3, d);
+    change_face(f4, twin);
+
+}
+
+
+void
+Remesher3d::split_boundary(HalfEdge *halfedge) {
+    /**
+     * Peforms split operation on boundary edge
+     */
+    HalfEdge *inner, *twin;
+
+    flux_assert((halfedge->face == nullptr )!= (halfedge->twin->face == nullptr));
+
+    if (halfedge->face != nullptr) {
+        inner = halfedge;
+    } else {
+        inner = halfedge->twin;
+    }
+    // Defining current setup
+    twin = inner->twin;
+    HalfEdge *tr = inner->next;
+    HalfEdge *tl = tr->next;
+
+    HalfVertex *p = twin->vertex;
+    HalfVertex *r = tl->vertex;
+
+    vec3d new_point_coords = calculate_middle(halfedge);
+    double new_points_arr[3] = {
+        new_point_coords[0],
+        new_point_coords[1],
+        new_point_coords[2]
+    };
+
+    HalfFace *f1 = inner->face;
+
+    // Initialize new vertex
+    HalfVertex *new_vertex = _halfmesh.create_vertex(3, new_points_arr);
+    new_vertex->index = -1;
+
+    // Setting up triangles
+    HalfEdge *a = _halfmesh.create_edge();
+    HalfEdge *b = _halfmesh.create_edge();
+    HalfEdge *c = _halfmesh.create_edge();
+    HalfEdge *d = _halfmesh.create_edge();
+
+    HalfFace *f2 = _halfmesh.create_face();
+
+    change_edge(a, tl, b, new_vertex, f1);
+    change_edge(b, c, a, r, f2);
+    change_edge(c, tr, d, new_vertex, f2);
+    change_edge(d, twin, c, p, nullptr);
+
+    change_edge(inner, a, nullptr, nullptr, nullptr);
+    change_edge(twin, nullptr, nullptr, new_vertex, nullptr);
+    change_edge(tr, b, nullptr, nullptr, f2);
+
+    change_vertex(new_vertex, a);
+    change_vertex(p, tr);
+
+    change_face(f1, inner);
+    change_face(f2, b);
+
+    // Connecting prev edge to d
+    twin->prev->next = d;
+    d->prev = twin->prev;
+    twin->prev = d;
+}
+
+/**
+ * HELPER METHODS
+ */
+void
+Remesher3d::update_halfedge_vector() {
+    /**
+     * Clears halfedge_vector and then adds current halfedges from halfmesh_ into
+     * halfedge_vector
+     */
+    _halfedge_vector.clear();
+    for (auto& e : _halfmesh.edges()) {
+        _halfedge_vector.push_back(e.get());
+    }
+}
+
+int
+Remesher3d::is_boundary_edge(HalfEdge* halfedge) {
+    /**
+     * Determines if edge is boundary (1) or not (0)
+     */
+    if (!halfedge->face || !halfedge->twin->face) return 1;
+    return 0;
+}
+
+/**
+ * COMPUTATION
+ */
+double
+Remesher3d::get_length(HalfEdge* halfedge) {
+    /**
+     * Calculates length of a halfedge
+     */
+    HalfVertex *v1 = halfedge->vertex;
+    HalfVertex *v2 = halfedge->twin->vertex;
+
+    double x1 = v1->point[0];
+    double y1 = v1->point[1];
+    double x2 = v2->point[0];
+    double y2 = v2->point[1];
+
+    return sqrt(pow((x1-x2), 2) + pow((y1-y2), 2));
+}
+
+vec3d
+Remesher3d::calculate_middle(HalfEdge *halfedge) {
+    /**
+     * Calculates the center coordinates of the halfedge
+     *
+     * Returns a array of 2 doubles
+     */
+    vec3d result_coords;
+
+    HalfVertex *v1 = halfedge->vertex;
+    HalfVertex *v2 = halfedge->twin->vertex;
+
+    vec3d v1_point = v1->point;
+    vec3d v2_point = v2->point;
+
+    result_coords[0] = (v1_point[0] + v2_point[0]) / 2.0;
+    result_coords[1] = (v1_point[1] + v2_point[1]) / 2.0;
+    result_coords[2] = 0;
+
+    return result_coords;
 }
 } // flux
