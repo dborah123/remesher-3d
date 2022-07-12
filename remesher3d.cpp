@@ -234,18 +234,26 @@ Remesher3d::incremental_relaxation(int num_iterations) {
     /**
      * Implementation of the incremental relaxation remeshing algorithm
      */
+    int num_splits = 0, num_boundary_splits = 0;
+
     for (int i = 0; i < num_iterations; ++i) {
-        std::cout << "split" << std::endl;
         // Split long edges
-        split_edges();
+        std::pair<int,int> splits = split_edges();
+        num_splits += splits.first;
+        num_boundary_splits += splits.second;
+
         // Collapse short edges
 
         // Equalize valences
 
         // Tangential relaxation
+        relax_vertices();
 
         // Project to surface
     }
+
+    std::cout << "Splits: \t" << num_splits << "\nBoundary Splits: " 
+        << num_boundary_splits << std::endl;;
 }
 
 /**
@@ -260,18 +268,17 @@ Remesher3d::split_edges() {
     update_halfedge_vector();
 
     for (auto& halfedge : _halfedge_vector) {
-        switch (check_split(halfedge))
-        {
-        case 1:
-            split(halfedge);
-            num_splits++;
-            break;
-        case 2:
-            split_boundary(halfedge);
-            num_boundary_splits++;
-            break;
-        default:
-            break;
+        switch (check_split(halfedge)) {
+            case 1:
+                split(halfedge);
+                num_splits++;
+                break;
+            case 2:
+                split_boundary(halfedge);
+                num_boundary_splits++;
+                break;
+            default:
+                break;
         }
     }
 
@@ -480,6 +487,138 @@ Remesher3d::change_vertex(HalfVertex *vertex, HalfEdge *halfedge) {
     if (halfedge) vertex->edge = halfedge;
 }
 
+/**
+ * COLLAPSE
+ */
+int
+Remesher3d::collapse_edges() {
+    /**
+     * Performs collapse on short edges
+     */
+    int num_collapses = 0;
+    std::vector<HalfEdge*> edges_to_remove;
+    std::set<HalfEdge*> removed_edges;
+
+    update_halfedge_vector();
+
+    for (auto& halfedge : _halfedge_vector) {
+        if (check_if_edge_is_removed(halfedge, removed_edges)) continue;
+        if (check_collapse(halfedge)) {
+            edges_to_remove = collapse(halfedge);
+
+            // Collapses wasn't performed to to negative area
+            if (!edges_to_remove.size()) continue;
+
+            num_collapses++;
+            add_removed_edges(removed_edges, edges_to_remove);
+        }
+    }
+    return num_collapses;
+}
+
+std::vector<HalfEdge*>
+Remesher3d::collapse(HalfEdge *halfedge) {
+    /**
+     * Collapses halfedge. q will be the receiver in this implementation
+     * 
+     * PARAMS:
+     * halfedge_mesh: smart pointer to the mesh
+     * halfedge:      pointer to the HalfEdge that is to be collapsed
+     * 
+     * returns a vector of halfedges that need to be removed from priorityqueue 
+     * and mesh itself
+     */
+
+    HalfVertex *q = halfedge->vertex;
+    HalfVertex *p = halfedge->twin->vertex;
+
+    vec3d original_q_coord = q->point;
+
+    // Getting one_ring for q
+    std::vector<HalfFace*> q_onering;
+    std::vector<HalfEdge*> p_onering;
+    _halfmesh.get_onering(q, q_onering);
+
+    q->point = p->point;
+
+    // Check. If collapse not valid, return an empty vector
+    HalfFace *f0 = halfedge->face;
+    HalfFace *f1 = halfedge->twin->face;
+
+    // Check if collapse is not valid --> return an empty vector
+    if (check_negative_area_ignore_faces(q_onering, f0, f1)) {
+        p->point = original_q_coord;
+        p_onering.empty();
+        return p_onering;
+    }
+
+    _halfmesh.get_onering(p, p_onering);
+
+    // Take onering of p and point all edges' vertex except halfedge's tp q
+    point_edges_to_q(p_onering)
+}
+
+int
+Remesher3d::check_if_edge_is_removed(
+    HalfEdge *halfedge, 
+    std::set<HalfEdge*>& removed_edges
+) {
+    /**
+     * Check if edge has already been removed in a previous collapse
+     */
+    if (removed_edges.find(halfedge) != removed_edges.end()) return 1;
+    return 0;
+}
+
+int
+Remesher3d::check_collapse(HalfEdge *halfedge) {
+    /**
+     * Checks if halfedge is valid for a collapse operation
+     */
+    if (is_boundary_edge(halfedge) || has_boundary_vertex(halfedge)) return 0;
+
+    double length = get_length(halfedge);
+    vec3d midpoint_vec = calculate_middle(halfedge);
+
+    double analytical_length = _sizing_field(midpoint_vec.data());
+    double ratio = length / analytical_length;
+
+    if (ratio < (sqrt(2)/2.0)) return 1;
+    return 0;
+}
+
+int
+Remesher3d::check_negative_area_ignore_faces(
+    std::vector<HalfFace*>& face_onering,
+    HalfFace *f0,
+    HalfFace *f1
+) {
+    /**
+     * Checks if negative area was created with this smooth
+     */
+    HalfEdge *start_edge;
+    HalfVertex *v0, *v1, *v2;
+    vec3d p0, p1, p2;
+
+    for (auto& face : face_onering) {
+        // Ignore face if it is one that will be collapsed
+        if (face == f0 || face == f1) continue;
+
+        // Getting vertices of triangle
+        start_edge = face->edge;
+        v0 = start_edge->vertex;
+        v1 = start_edge->next->vertex;
+        v2 = start_edge->next->next->vertex;
+
+        // Getting their coordinates
+        p0 = v0->point;
+        p1 = v1->point;
+        p2 = v2->point;
+
+        if (orient2d(p0.data(), p1.data(), p2.data()) <= 0) return 1;
+    }
+    return 0;
+}
 
 /**
  * HELPER METHODS
@@ -502,6 +641,18 @@ Remesher3d::is_boundary_edge(HalfEdge* halfedge) {
      * Determines if edge is boundary (1) or not (0)
      */
     if (!halfedge->face || !halfedge->twin->face) return 1;
+    return 0;
+}
+
+int
+Remesher3d::has_boundary_vertex(HalfEdge* halfedge) {
+    /**
+     * Checks if either endpoint vertices are boundary
+     */
+    HalfVertex *q = halfedge->vertex;
+    HalfVertex *p = halfedge->twin->vertex;
+
+    if (q->index <=-1 || p->index <=-1) return 1;
     return 0;
 }
 
@@ -545,4 +696,6 @@ Remesher3d::calculate_middle(HalfEdge *halfedge) {
 
     return result_coords;
 }
+
+
 } // flux

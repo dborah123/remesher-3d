@@ -59,7 +59,22 @@ int check_split(HalfEdge *halfedge);
 /**
  * COllAPSE
  */
-
+int collapse_edges();
+std::vector<HalfEdge*> collapse(HalfEdge *halfedge);
+void add_removed_edges(
+    std::set<HalfEdge*>& removed_edges,
+    std::vector<HalfEdge*>& edges_to_remove
+);
+void point_edges_to_q(std::vector<HalfEdge*>& p_onering, HalfVertex *q, HalfVertex *p);
+std::vector<HalfEdge*> connect_triangles(HalfEdge *halfedge);
+void remove_p(HalfEdge *halfedge, std::vector<HalfEdge*>& edges_to_remove);
+int check_if_edge_is_removed(HalfEdge *halfedge, std::set<HalfEdge*>& removed_edges);
+int check_collapse(HalfEdge *halfedge);
+int check_negative_area_ignore_faces(
+    std::vector<HalfFace*>& face_onering,
+    HalfFace *f0,
+    HalfFace *f1
+);
 /**
  * EQUALIZE VALENCES
  */
@@ -84,6 +99,7 @@ void change_coordinates(std::map<HalfVertex*, vec3d>& new_points);
  */
 void update_halfedge_vector();
 int is_boundary_edge(HalfEdge* halfedge);
+int has_boundary_vertex(HalfEdge *halfedge);
 
 /**
  * COMPUTATION
