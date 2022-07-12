@@ -234,7 +234,7 @@ Remesher3d::incremental_relaxation(int num_iterations) {
     /**
      * Implementation of the incremental relaxation remeshing algorithm
      */
-    int num_splits = 0, num_boundary_splits = 0;
+    int num_splits = 0, num_boundary_splits = 0, num_collapses = 0;
 
     for (int i = 0; i < num_iterations; ++i) {
         // Split long edges
@@ -243,17 +243,19 @@ Remesher3d::incremental_relaxation(int num_iterations) {
         num_boundary_splits += splits.second;
 
         // Collapse short edges
+        num_collapses += collapse_edges();
 
         // Equalize valences
 
         // Tangential relaxation
-        relax_vertices();
+        // relax_vertices();
 
         // Project to surface
     }
 
     std::cout << "Splits: \t" << num_splits << "\nBoundary Splits: " 
-        << num_boundary_splits << std::endl;;
+        << num_boundary_splits << "\nCollapses: \t" << num_collapses 
+        << std::endl;;
 }
 
 /**
@@ -322,9 +324,6 @@ Remesher3d::check_split(HalfEdge* halfedge) {
 void
 Remesher3d::split(HalfEdge* halfedge) {
     /**
-     * 
-     */
-        /**
      * Splits (long) halfedge into 4 edges
      */
     // Calculating coordinates for new point
@@ -555,7 +554,94 @@ Remesher3d::collapse(HalfEdge *halfedge) {
     _halfmesh.get_onering(p, p_onering);
 
     // Take onering of p and point all edges' vertex except halfedge's tp q
-    point_edges_to_q(p_onering)
+    point_edges_to_q(p_onering, q, p);
+
+    // Update q connectivity and move it to the position of p
+    q->edge = halfedge->twin->next;
+
+    // Connect the two triangles, bridging the gap as seen in our drawing
+    std::vector<HalfEdge*> edges_to_remove = connect_triangles(halfedge);
+    remove_p(halfedge, edges_to_remove);
+
+    return edges_to_remove;
+}
+
+std::vector<HalfEdge*>
+Remesher3d::connect_triangles(HalfEdge *halfedge) {
+    /**
+     * Connects the triangles, bridging the gap that was created by removing p
+     * 
+     * PARAMS:
+     * halfedge: pointer to the HalfEdge that is being removed
+     * 
+     * returns a vector of 2 halfedges that need to be removed
+     */
+    HalfEdge *a = halfedge->next->next; // Replaces c
+    HalfEdge *b = halfedge->twin->next; // Replaces d
+    HalfEdge *c = halfedge->next->twin; // Removing
+    HalfEdge *d = b->next->twin;        // Removing
+
+    // Connect a to triangle
+    a->next = c->next;
+    a->face = c->face;
+
+    // Connect c's previous edge and face to a
+    c->next->next->next = a;
+    c->face->edge = a;
+
+    //Connect b to triangle
+    b->next = d->next;
+    b->face = d->face;
+
+    // Connect d's previous edge and face to b
+    d->next->next->next = b;
+    d->face->edge = b;
+
+    // Update vertex's edge for c and d just in case
+    c->vertex->edge = a;
+    d->twin->vertex->edge = b->next;
+
+    HalfEdge *c_twin = c->twin;
+    HalfEdge *d_twin = d->twin;
+    std::vector<HalfEdge*> edges_to_remove({c, c_twin, d, d_twin});
+
+    return edges_to_remove;
+}
+
+void
+Remesher3d::remove_p(HalfEdge *halfedge, std::vector<HalfEdge*>& edges_to_remove) {
+    /**
+     * Removes HalfVertex p and the affected half edges p affects
+     * 
+     * PARAMS:
+     * halfedge_mesh: smart pointer to halfedge_mesh that p is being removed from
+     * halfedge: halfedge that is being removed
+     * edges_to_remove: the edges c and d that are also being removed
+     */
+
+    // Remove faces from mesh
+    _halfmesh.remove(halfedge->face);
+    _halfmesh.remove(halfedge->twin->face);
+
+    HalfEdge *twin = halfedge->twin;
+    HalfVertex *p = twin->vertex;
+
+    // Remove original halfedge and twin
+    _halfmesh.remove(halfedge);
+    _halfmesh.remove(twin);
+
+    // Remove c and d plus their twins
+    for (auto& e : edges_to_remove) {
+        _halfmesh.remove(e);
+    }
+
+    // Add halfedge and twin to edges_to_remove so we can add them to set
+    edges_to_remove.push_back(halfedge);
+    edges_to_remove.push_back(twin);
+
+    flux_assert(edges_to_remove.size() == 6);
+
+    _halfmesh.remove(p);
 }
 
 int
@@ -587,6 +673,33 @@ Remesher3d::check_collapse(HalfEdge *halfedge) {
     return 0;
 }
 
+void
+Remesher3d::point_edges_to_q(
+    std::vector<HalfEdge*>& p_onering,
+    HalfVertex *q,
+    HalfVertex *p
+) {
+    /**
+     * Takes all the HalfEdges that are based at p and points them towards q. 
+     * This function makes sure to ignore the HalfVertex that is being removed.
+     * 
+     * PARAMS:
+     * p_onering: Smart pointer to the onering of p that contains all the HalfEdges
+     *            affected by p's removal
+     * p:         Pointer to the HalfVertex that is being removed
+     * q:         Pointer to the receiving HalfVertex
+     */
+    // Loop thru onering, reorienting HalfEdges
+    for (auto& e: p_onering) {
+        if (e->vertex == p) {
+            if (e->next->vertex == q) { // Check for HalfEdge being removed
+                continue;
+            }
+            e->vertex = q;
+        }
+    }
+}
+
 int
 Remesher3d::check_negative_area_ignore_faces(
     std::vector<HalfFace*>& face_onering,
@@ -614,10 +727,27 @@ Remesher3d::check_negative_area_ignore_faces(
         p0 = v0->point;
         p1 = v1->point;
         p2 = v2->point;
+        const double *center;
+        double center_coords[3] = {0.0, 0.0, 0.0};
+        center = center_coords;
 
-        if (orient2d(p0.data(), p1.data(), p2.data()) <= 0) return 1;
+        if (orient3d(p0.data(), p1.data(), p2.data(), center) <= 0) return 1;
     }
     return 0;
+}
+
+
+void
+Remesher3d::add_removed_edges(
+    std::set<HalfEdge*>& removed_edges,
+    std::vector<HalfEdge*>& edges_to_remove
+) {
+    /**
+     * Insert edges that have been removed into set
+     */
+    for (auto& halfedge : edges_to_remove) {
+        removed_edges.insert(halfedge);
+    }
 }
 
 /**

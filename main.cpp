@@ -15,7 +15,7 @@ int
 main (int argc, char *argv[]) {
     /* Creating un-uniform sphere from marching-tet project */
     // Creating analytical sphere function
-    Sphere<Triangle> sphere(3,3,.3);
+    Sphere<Triangle> sphere(10,10,.3);
     EdgelengthSizingField function(0.06);
 
     HalfEdgeMesh<Triangle> halfmesh(sphere);
