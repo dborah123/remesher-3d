@@ -36,7 +36,7 @@ With this iteration, the triangles look quite equilateral. Yet, one can notice t
 
 **10 Iterations:**  
 ![10,10](remesher-3d/10,10.png)  
-Given an input of 10 iterations, one can notices a decrease in the quality of the overall form of the sphere. This algorithm does npt account for the original shape of the mesh necessarily.  
+Given an input of 10 iterations, one can notices a decrease in the quality of the overall form of the sphere. This algorithm does not account for the original shape of the mesh necessarily.  
 
 **Conclusion**
-This algorithm works well on a limited scale. Yet as more iterations occur, the diregard for the original shape is apparent. If I had to do this again, I would go through the vertices after and align them with the analyical function somehow.
+This algorithm works well on a limited scale. Yet as more iterations occur, the disregard for the original shape is apparent. If I had to do this again, I would go through the vertices after and align them with the analyical function somehow.
